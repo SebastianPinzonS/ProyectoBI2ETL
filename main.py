@@ -14,12 +14,15 @@ def download_csv(key_path, bucket_name, file_name, selected_columns):
     return selected_data
 
 def insert_data_into_sqlite(cursor, table_name, data):
-    for _, row in data.iterrows():
-        # Construct the SQL query
-        query = f'INSERT INTO {table_name} VALUES ({",".join(map(repr, row.values))})'
-
-        # Execute the query
-        cursor.execute(query)
+    try:
+        for _, row in data.iterrows():
+            query = f'INSERT OR IGNORE INTO {table_name} VALUES ({",".join(map(repr, row.values))})'
+            cursor.execute(query)
+        connection.commit()
+    except Exception as e:
+        print(f"Error: {e}")
+        connection.rollback()
+    
 
 if __name__ == "__main__":
     key_path = "fit-reducer-406602-fd2b8b95e849.json"
