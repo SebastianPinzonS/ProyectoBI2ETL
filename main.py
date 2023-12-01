@@ -3,6 +3,17 @@ import sqlite3
 from io import StringIO
 import pandas as pd
 
+def download_csv_loc(key_path, bucket_name, file_name, selected_columns):
+    storage_client = storage.Client.from_service_account_json(key_path)
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(file_name)
+
+    content = blob.download_as_text(encoding="latin-1")
+    df = pd.read_csv(StringIO(content), sep=',')
+    selected_data = df[selected_columns]
+    selected_data.fillna("no aplica", inplace = True)
+    return selected_data
+
 def download_csv(key_path, bucket_name, file_name, selected_columns):
     storage_client = storage.Client.from_service_account_json(key_path)
     bucket = storage_client.get_bucket(bucket_name)
@@ -10,8 +21,10 @@ def download_csv(key_path, bucket_name, file_name, selected_columns):
 
     content = blob.download_as_text(encoding="latin-1")
     df = pd.read_csv(StringIO(content), sep=',')
-    selected_data = df[selected_columns].dropna().reset_index(drop=True)
+    selected_data = df[selected_columns]
+    selected_data = selected_data.dropna().reset_index(drop=True)
     return selected_data
+
 
 def insert_data_into_sqlite(cursor, table_name, data):
     try:
@@ -29,14 +42,19 @@ if __name__ == "__main__":
     bucket_name = "no_asma_2021"
     file_name = "Datos_proyecto_II_BI_2021_sin_asma.csv"
     db_name = "mmd-no-asma-2021.db"
-    fact_table = "ft_enfermedades_mentales"
-    columns_fact_table = ["DIRECTORIO_PER","NPCFP14C"]
-    df = download_csv(key_path, bucket_name, file_name, columns_fact_table)
-
+    fact_table = "ft_encuestados"
+    ln = "localizacion"
+    columns_fact_table = ["DIRECTORIO_PER","NPCEP4","NOMBRE_LOCALIDAD","MPIO","SEXO","NPCEP26","NPCFP14C","NVCBP11AA"]
+    columns_dpto_table = ["MPIO","NOMBRE_LOCALIDAD"] 
+    ft = download_csv(key_path, bucket_name, file_name, columns_fact_table)
+    dptot = download_csv_loc(key_path, bucket_name, file_name, columns_dpto_table)
     connection = sqlite3.connect(db_name)
     cursor = connection.cursor()
 
-    insert_data_into_sqlite(cursor, fact_table, df)
+    insert_data_into_sqlite(cursor,  ln, dptot)
+    insert_data_into_sqlite(cursor, fact_table, ft)
+    
+    
 
 
     connection = sqlite3.connect(db_name)
